@@ -34,7 +34,7 @@ controls.maxPolarAngle = Math.PI / 2; // Restrict vertical movement
 
 // 6. Load the GLB pump model
 const loader = new GLTFLoader();
-loader.load("/models/turbine.glb", (gltf) => {
+loader.load("./models/turbine.glb", (gltf) => {
     const pump = gltf.scene;
     pump.scale.set(1, 1, 1); // Scale the model if needed
     scene.add(pump);

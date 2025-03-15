@@ -1,4 +1,5 @@
 export default {
+    base: "/Pump/",
     root: ".", 
     publicDir: "public", 
     build: {
