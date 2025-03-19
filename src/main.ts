@@ -1,83 +1,126 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
-// 1. Set up the scene
+// Set up the scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xbbbbbbff); // Background color
+scene.background = new THREE.Color(0xbbbbbbff);
 
-// 2. Set up the camera
+// Set up the camera
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 5); // Adjusted for better visibility
+camera.position.set(0, 0, 5);
 
-// 3. Set up the renderer
-const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true});
+// Set up the renderer
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// 4. Add lighting
+// Add lighting
 const light = new THREE.DirectionalLight(0xffffff, 3);
-light.position.set(5, 5, 5); // Light position
+light.position.set(5, 5, 5);
 scene.add(light);
-const ambientLight = new THREE.AmbientLight(0x404040, 10); // Soft light
+
+const ambientLight = new THREE.AmbientLight(0x404040, 10);
 scene.add(ambientLight);
 
-// 5. Load the GLB pump model
+// Load the GLB pump model
 const loader = new GLTFLoader();
-let pump: THREE.Object3D | null = null; // Store the loaded model
+let pump: THREE.Object3D | null = null;
 
 loader.load("./models/DougnutV4.glb", (gltf) => {
     pump = gltf.scene;
-    pump.scale.set(1, 1, 1); // Scale the model if needed
+    pump.scale.set(1, 1, 1);
     scene.add(pump);
 }, undefined, (error) => {
     console.error("Error loading model:", error);
 });
 
-// 6. Track Mouse Dragging to Rotate Object
+// Track Mouse and Touch Dragging to Rotate Object
 let isDragging = false;
-let previousMouseX = 0;
-let previousMouseY = 0;
+let previousX = 0;
+let previousY = 0;
+let previousDistance = 0; // For pinch zoom
 
-window.addEventListener("mousedown", (event) => {
+function startDragging(x: number, y: number) {
     isDragging = true;
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY;
-});
+    previousX = x;
+    previousY = y;
+}
 
-window.addEventListener("mouseup", () => {
+function stopDragging() {
     isDragging = false;
-});
+}
 
-window.addEventListener("mousemove", (event) => {
+function dragRotate(x: number, y: number) {
     if (!isDragging || !pump) return;
 
-    const deltaX = event.clientX - previousMouseX;
-    const deltaY = event.clientY - previousMouseY;
+    const deltaX = x - previousX;
+    const deltaY = y - previousY;
 
-    // Rotate object based on mouse movement
-    pump.rotation.y += deltaX * 0.01; // Horizontal drag rotates around Y-axis
-    pump.rotation.x += deltaY * 0.01; // Vertical drag rotates around X-axis
+    pump.rotation.y += deltaX * 0.01;
+    pump.rotation.x += deltaY * 0.01;
 
-    previousMouseX = event.clientX;
-    previousMouseY = event.clientY;
+    previousX = x;
+    previousY = y;
+}
+
+// Mouse events
+window.addEventListener("mousedown", (event) => startDragging(event.clientX, event.clientY));
+window.addEventListener("mouseup", stopDragging);
+window.addEventListener("mousemove", (event) => dragRotate(event.clientX, event.clientY));
+
+// Touch events for rotation
+window.addEventListener("touchstart", (event) => {
+    if (event.touches.length === 1) {
+        startDragging(event.touches[0].clientX, event.touches[0].clientY);
+    } else if (event.touches.length === 2) {
+        previousDistance = getTouchDistance(event.touches);
+    }
+});
+window.addEventListener("touchend", (event) => {
+    if (event.touches.length < 2) stopDragging();
+});
+window.addEventListener("touchmove", (event) => {
+    if (event.touches.length === 1) {
+        dragRotate(event.touches[0].clientX, event.touches[0].clientY);
+    } else if (event.touches.length === 2) {
+        handlePinchZoom(event.touches);
+    }
 });
 
-window.addEventListener("wheel", (event) => {
-    const zoomSpeed = 0.005; // Adjust for faster or slower zooming
-    camera.position.z += event.deltaY * zoomSpeed;
+// Pinch zoom function
+function getTouchDistance(touches: TouchList) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
 
-    // Prevent zooming too far in or out
+function handlePinchZoom(touches: TouchList) {
+    const distance = getTouchDistance(touches);
+    if (!previousDistance) return;
+
+    const zoomSpeed = 0.02;
+    const delta = distance - previousDistance;
+    camera.position.z -= delta * zoomSpeed;
+    camera.position.z = Math.max(1, Math.min(10, camera.position.z));
+
+    previousDistance = distance;
+}
+
+// Scroll Wheel Zoom (Desktop)
+window.addEventListener("wheel", (event) => {
+    const zoomSpeed = 0.005;
+    camera.position.z += event.deltaY * zoomSpeed;
     camera.position.z = Math.max(1, Math.min(10, camera.position.z));
 });
 
-// 7. Animation loop
+// Animation loop
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
 }
 animate();
 
-// 8. Handle window resizing
+// Handle window resizing
 window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
