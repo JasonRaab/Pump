@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 // 1. Set up the scene
 const scene = new THREE.Scene();
@@ -8,44 +7,72 @@ scene.background = new THREE.Color(0xbbbbbbff); // Background color
 
 // 2. Set up the camera
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 3); // Camera position
+camera.position.set(0, 0, 5); // Adjusted for better visibility
 
 // 3. Set up the renderer
-const renderer = new THREE.WebGLRenderer({ alpha: true });
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // 4. Add lighting
-const light = new THREE.DirectionalLight(0xffffff, 1);
+const light = new THREE.DirectionalLight(0xffffff, 3);
 light.position.set(5, 5, 5); // Light position
 scene.add(light);
-
-const ambientLight = new THREE.AmbientLight(0x404040); // Soft light
+const ambientLight = new THREE.AmbientLight(0x404040, 10); // Soft light
 scene.add(ambientLight);
 
-// 5. Add OrbitControls for mouse movement
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // Smooth movement
-controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
-controls.minDistance = 1.5; // Limit zoom in
-controls.maxDistance = 10; // Limit zoom out
-controls.maxPolarAngle = Math.PI / 2; // Restrict vertical movement
-
-// 6. Load the GLB pump model
+// 5. Load the GLB pump model
 const loader = new GLTFLoader();
-loader.load("./models/turbine.glb", (gltf) => {
-    const pump = gltf.scene;
+let pump: THREE.Object3D | null = null; // Store the loaded model
+
+loader.load("./models/DougnutV4.glb", (gltf) => {
+    pump = gltf.scene;
     pump.scale.set(1, 1, 1); // Scale the model if needed
     scene.add(pump);
 }, undefined, (error) => {
     console.error("Error loading model:", error);
 });
 
+// 6. Track Mouse Dragging to Rotate Object
+let isDragging = false;
+let previousMouseX = 0;
+let previousMouseY = 0;
+
+window.addEventListener("mousedown", (event) => {
+    isDragging = true;
+    previousMouseX = event.clientX;
+    previousMouseY = event.clientY;
+});
+
+window.addEventListener("mouseup", () => {
+    isDragging = false;
+});
+
+window.addEventListener("mousemove", (event) => {
+    if (!isDragging || !pump) return;
+
+    const deltaX = event.clientX - previousMouseX;
+    const deltaY = event.clientY - previousMouseY;
+
+    // Rotate object based on mouse movement
+    pump.rotation.y += deltaX * 0.01; // Horizontal drag rotates around Y-axis
+    pump.rotation.x += deltaY * 0.01; // Vertical drag rotates around X-axis
+
+    previousMouseX = event.clientX;
+    previousMouseY = event.clientY;
+});
+
+window.addEventListener("wheel", (event) => {
+    const zoomSpeed = 0.005; // Adjust for faster or slower zooming
+    camera.position.z += event.deltaY * zoomSpeed;
+
+    // Prevent zooming too far in or out
+    camera.position.z = Math.max(1, Math.min(10, camera.position.z));
+});
+
 // 7. Animation loop
 function animate() {
     requestAnimationFrame(animate);
-    controls.update(); // Update camera movement
     renderer.render(scene, camera);
 }
 animate();
